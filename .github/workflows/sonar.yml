@@ -54,12 +54,12 @@ jobs:
           sed -i "s/^jdbc.username.*$/jdbc.username=${{ secrets.RDS_USER }}/" src/main/resources/application.properties
           sed -i "s/^jdbc.password.*$/jdbc.password=${{ secrets.RDS_PASS }}/" src/main/resources/application.properties
           sed -i "s/db01/${{ secrets.RDS_ENDPOINT }}/" src/main/resources/application.properties
-      - name: upload image to ECR
-        uses: appleboy/docker-ecr-action@master
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           access_key: ${{ secrets.AWS_ACCESS_KEY}}
           secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY}} }}
-          registry: ${{ secrets.registry }}
+          registry: ${{ secrets.REGISTRY }}
           cache_from: ${{ secrets.cache }}
           repo: api-sample
           region: us-east-1
