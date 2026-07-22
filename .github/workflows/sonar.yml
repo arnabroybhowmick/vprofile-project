@@ -86,7 +86,7 @@ jobs:
           docker build -t $ECR_REPOSITORY .
 
       - name: Tag Docker Image
-        run: |
+        run: #gfghhhhjh
           docker tag $ECR_REPOSITORY:latest $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
       - name: Push Docker Image
