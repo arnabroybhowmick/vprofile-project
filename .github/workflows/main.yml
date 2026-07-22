@@ -24,7 +24,7 @@ jobs:
         run: mvn checkstyle:checkstyle
 
       - name: Setup SonarQube
-        uses: warchant/setup-sonar-scanner@v7
+        uses: SonarSource/sonarqube-scan-action@v5
 
       - name: SonarQube Scan
         run: |
