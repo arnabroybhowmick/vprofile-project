@@ -42,6 +42,7 @@ jobs:
             -Dsonar.junit.reportsPath=target/surefire-reports
             -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml
   BUILD_AND_PUBLISH:
+    needs: Testing
     runs-on: ubuntu-latest
 
     steps:
@@ -61,7 +62,7 @@ jobs:
           registry: ${{ secrets.registry }}
           cache_from: ${{ secrets.cache }}
           repo: api-sample
-          region: ap-northeast-1
+          region: us-east-1
           auto_tag: true
           daemon_off: false
           dockerfile: example/Dockerfile
