@@ -272,6 +272,7 @@
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.4.0</version>
             </plugin>
+<<<<<<< HEAD
 <!-- JaCoCo Plugin -->
  <plugin>
  		        <groupId>org.jacoco</groupId>
@@ -294,6 +295,8 @@
  		            </execution>
  		        </executions>
  		</plugin>
+=======
+>>>>>>> ca3f7885ade17ff91ad2e805bfb0f51147282a50
             <!-- JaCoCo Plugin -->
 <!--            <plugin>-->
 <!--                <groupId>org.jacoco</groupId>-->

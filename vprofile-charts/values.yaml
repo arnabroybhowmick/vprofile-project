@@ -1,0 +1,97 @@
+# ─── App (Tomcat) ────────────────────────────────────────────────────────────
+app:
+  name: vproapp
+  replicas: 1
+  image:
+    repository: vprocontainers/vprofileapp
+    tag: latest
+    pullPolicy: Always
+  containerPort: 8080
+  service:
+    name: vproapp-service
+    port: 8080
+    type: ClusterIP
+
+# ─── Database (MySQL) ────────────────────────────────────────────────────────
+db:
+  name: vprodb
+  replicas: 1
+  image:
+    repository: vprocontainers/vprofiledb
+    tag: latest
+    pullPolicy: IfNotPresent
+  containerPort: 3306
+  service:
+    name: vprodb
+    port: 3306
+    type: ClusterIP
+  pvc:
+    name: db-pv-claim
+    storageClassName: default
+    accessMode: ReadWriteOnce
+    storage: 3Gi
+  mountPath: /var/lib/mysql
+
+# ─── Memcached ───────────────────────────────────────────────────────────────
+memcached:
+  name: vpromc
+  replicas: 1
+  image:
+    repository: memcached
+    tag: latest
+    pullPolicy: IfNotPresent
+  containerPort: 11211
+  service:
+    name: vprocache01
+    port: 11211
+    type: ClusterIP
+
+# ─── RabbitMQ ────────────────────────────────────────────────────────────────
+rabbitmq:
+  name: vpromq01
+  replicas: 1
+  image:
+    repository: rabbitmq
+    tag: latest
+    pullPolicy: IfNotPresent
+  containerPort: 5672
+  defaultUser: guest
+  service:
+    name: vpromq01
+    port: 5672
+    type: ClusterIP
+
+# ─── Init Containers ─────────────────────────────────────────────────────────
+initContainers:
+  busybox:
+    image:
+      repository: busybox
+      tag: latest
+  # Commands are hardcoded in the templates; these values control the image only.
+
+# ─── Ingress ─────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  name: vpro-ingress
+  className: nginx
+  host: vprofile.hkhinfoteck.xyz
+  path: /
+  pathType: Prefix
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+
+# ─── Secrets ─────────────────────────────────────────────────────────────────
+secrets:
+  name: app-secret
+  # Base64-encoded values (same defaults as the original manifest)
+  dbPass: dnByb2RicGFzcw==   # vprodbpass
+  rmqPass: Z3Vlc3Q=           # guest
+
+# ─── Docker Registry Secret ──────────────────────────────────────────────────
+dockerRegistry:
+  enabled: false
+  name: regcred
+  server: https://index.docker.io/v1/
+  username: ""
+  password: ""
+  email: ""

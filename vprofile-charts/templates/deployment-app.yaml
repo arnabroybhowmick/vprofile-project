@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.app.name }}
+  labels:
+    app: {{ .Values.app.name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.app.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.app.name }}
+    spec:
+      {{- if .Values.dockerRegistry.enabled }}
+      imagePullSecrets:
+        - name: {{ .Values.dockerRegistry.name }}
+      {{- end }}
+      containers:
+        - name: {{ .Values.app.name }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - name: vproapp-port
+              containerPort: {{ .Values.app.containerPort }}
+      initContainers:
+        - name: init-mydb
+          image: "{{ .Values.initContainers.busybox.image.repository }}:{{ .Values.initContainers.busybox.image.tag }}"
+          command:
+            - sh
+            - -c
+            - >
+              until nslookup {{ .Values.db.service.name }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local;
+              do echo waiting for mydb; sleep 2; done;
+        - name: init-memcache
+          image: "{{ .Values.initContainers.busybox.image.repository }}:{{ .Values.initContainers.busybox.image.tag }}"
+          command:
+            - sh
+            - -c
+            - >
+              until nslookup {{ .Values.memcached.service.name }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local;
+              do echo waiting for memcache; sleep 2; done;

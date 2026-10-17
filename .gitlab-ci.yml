@@ -1,0 +1,151 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# vprofile – GitLab CI/CD  |  Helm lint → package → deploy → drift-detection
+# Required CI/CD variables (Settings → CI/CD → Variables):
+#   AWS_ACCESS_KEY_ID        – IAM key with EKS access
+#   AWS_SECRET_ACCESS_KEY    – IAM secret
+#   AWS_DEFAULT_REGION       – e.g. us-east-1
+#   EKS_CLUSTER_NAME         – name of the target EKS cluster
+#   DOCKER_REGISTRY_SERVER   – e.g. https://index.docker.io/v1/
+#   DOCKER_REGISTRY_USERNAME – registry username
+#   DOCKER_REGISTRY_PASSWORD – registry password / token
+# ─────────────────────────────────────────────────────────────────────────────
+
+variables:
+  HELM_VERSION: "3.14.4"
+  CHART_PATH: "vprofile-charts"
+  RELEASE_NAME: "vprofile"
+  NAMESPACE: "vprofile"
+
+# ─── Stages ──────────────────────────────────────────────────────────────────
+stages:
+  - lint
+  - package
+  - deploy
+  - drift-detection
+
+# ─── Reusable anchors ────────────────────────────────────────────────────────
+.install_helm: &install_helm
+  - apk add --no-cache curl bash
+  - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash -s -- --version "v${HELM_VERSION}"
+  - helm version
+
+.install_aws_cli: &install_aws_cli
+  - apk add --no-cache aws-cli
+
+.configure_kubectl: &configure_kubectl
+  - aws eks update-kubeconfig --region "$AWS_DEFAULT_REGION" --name "$EKS_CLUSTER_NAME"
+  - kubectl get nodes   # quick connectivity check
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. HELM LINT
+# ─────────────────────────────────────────────────────────────────────────────
+helm-lint:
+  stage: lint
+  image: alpine:3.19
+  before_script:
+    - *install_helm
+  script:
+    - helm lint "$CHART_PATH"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. HELM PACKAGE
+# ─────────────────────────────────────────────────────────────────────────────
+helm-package:
+  stage: package
+  image: alpine:3.19
+  before_script:
+    - *install_helm
+  script:
+    - mkdir -p helm-packages
+    - helm package "$CHART_PATH" --destination helm-packages/
+    - echo "Packaged chart:"
+    - ls -lh helm-packages/
+  artifacts:
+    name: "helm-chart-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - helm-packages/
+    expire_in: 1 week
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. DEPLOY
+# ─────────────────────────────────────────────────────────────────────────────
+deploy:
+  stage: deploy
+  image: alpine/k8s:1.28.4
+  before_script:
+    - *install_helm
+    - *install_aws_cli
+    - *configure_kubectl
+  script:
+    # Ensure the namespace exists
+    - kubectl get namespace "$NAMESPACE" || kubectl create namespace "$NAMESPACE"
+
+    # Create / update the Docker registry pull-secret
+    - |
+      kubectl create secret docker-registry regcred \
+        --namespace "$NAMESPACE" \
+        --docker-server="$DOCKER_REGISTRY_SERVER" \
+        --docker-username="$DOCKER_REGISTRY_USERNAME" \
+        --docker-password="$DOCKER_REGISTRY_PASSWORD" \
+        --dry-run=client -o yaml | kubectl apply -f -
+
+    # Deploy the chart
+    - |
+      helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
+        --namespace "$NAMESPACE" \
+        --set dockerRegistry.enabled=true \
+        --set dockerRegistry.name=regcred \
+        --set dockerRegistry.server="$DOCKER_REGISTRY_SERVER" \
+        --set dockerRegistry.username="$DOCKER_REGISTRY_USERNAME" \
+        --set dockerRegistry.password="$DOCKER_REGISTRY_PASSWORD" \
+        --wait \
+        --timeout 5m
+
+    - helm status "$RELEASE_NAME" --namespace "$NAMESPACE"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. DRIFT DETECTION
+# ─────────────────────────────────────────────────────────────────────────────
+drift-detection:
+  stage: drift-detection
+  image: alpine/k8s:1.28.4
+  before_script:
+    - *install_helm
+    - *install_aws_cli
+    # Install helm-diff plugin
+    - helm plugin install https://github.com/databus23/helm-diff --version v3.9.4
+    - *configure_kubectl
+  script:
+    - echo "=== Helm Diff (chart vs live release) ==="
+    - |
+      helm diff upgrade "$RELEASE_NAME" "$CHART_PATH" \
+        --namespace "$NAMESPACE" \
+        --set dockerRegistry.enabled=true \
+        --set dockerRegistry.name=regcred \
+        --set dockerRegistry.server="$DOCKER_REGISTRY_SERVER" \
+        --set dockerRegistry.username="$DOCKER_REGISTRY_USERNAME" \
+        --set dockerRegistry.password="$DOCKER_REGISTRY_PASSWORD" \
+        --color \
+        || true   # diff exits non-zero when changes exist; don't fail the job
+
+    - echo "=== Helm Dry-Run ==="
+    - |
+      helm upgrade --install "$RELEASE_NAME" "$CHART_PATH" \
+        --namespace "$NAMESPACE" \
+        --set dockerRegistry.enabled=true \
+        --set dockerRegistry.name=regcred \
+        --set dockerRegistry.server="$DOCKER_REGISTRY_SERVER" \
+        --set dockerRegistry.username="$DOCKER_REGISTRY_USERNAME" \
+        --set dockerRegistry.password="$DOCKER_REGISTRY_PASSWORD" \
+        --dry-run
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

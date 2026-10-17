@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.db.pvc.name }}
+  labels:
+    app: {{ .Values.db.name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  storageClassName: {{ .Values.db.pvc.storageClassName }}
+  accessModes:
+    - {{ .Values.db.pvc.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.db.pvc.storage }}

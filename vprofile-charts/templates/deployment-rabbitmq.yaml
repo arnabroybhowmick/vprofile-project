@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.rabbitmq.name }}
+  labels:
+    app: {{ .Values.rabbitmq.name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+spec:
+  replicas: {{ .Values.rabbitmq.replicas }}
+  selector:
+    matchLabels:
+      app: {{ .Values.rabbitmq.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.rabbitmq.name }}
+    spec:
+      containers:
+        - name: {{ .Values.rabbitmq.name }}
+          image: "{{ .Values.rabbitmq.image.repository }}:{{ .Values.rabbitmq.image.tag }}"
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          ports:
+            - name: vpromq01-port
+              containerPort: {{ .Values.rabbitmq.containerPort }}
+          env:
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.name }}
+                  key: rmq-pass
+            - name: RABBITMQ_DEFAULT_USER
+              value: {{ .Values.rabbitmq.defaultUser | quote }}
