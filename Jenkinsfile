@@ -70,7 +70,7 @@ pipeline {
             ])
 
                sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
-                   -Dsonar.organization=arnabroybhowmick_vprofile-project \
+                   -Dsonar.organization=arnabroybhowmick\
                    -Dsonar.projectName=vprofile-repo \
                    -Dsonar.projectVersion=1.0 \
                    -Dsonar.sources=src/ \
