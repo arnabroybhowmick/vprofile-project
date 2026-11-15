@@ -12,8 +12,8 @@ pipeline {
         NEXUS_VERSION = "nexus3"
         NEXUS_PROTOCOL = "http"
         NEXUS_URL = "54.227.231.252:8081"
-        NEXUS_REPOSITORY = "vprofile-release"
-        NEXUS_REPO_ID = "vprofile-release"
+        NEXUS_REPOSITORY = "maven-releases"
+        NEXUS_REPO_ID = "maven-releases"
         NEXUS_CREDENTIAL_ID = "admin"
         ARTVERSION = "${env.BUILD_ID}"
     }
@@ -184,7 +184,7 @@ pipeline {
                             PASS: env.STAGING_PASS,
 
                             nexusip: '172.31.5.4',
-                            reponame: 'vprofile-release',
+                            reponame: 'maven-releases',
                             groupid: 'QA',
 
                             time: env.BUILD_TIMESTAMP ?: '',
