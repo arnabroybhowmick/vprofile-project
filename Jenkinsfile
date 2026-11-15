@@ -175,7 +175,7 @@ pipeline {
                         installation: 'ansible',
                         colorized: true,
 
-                        credentialsId: 'appLogin',
+                        credentialsId: 'applogin',
                         disableHostKeyChecking: true,
 
                         extraVars: [
